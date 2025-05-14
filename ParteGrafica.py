@@ -1,5 +1,8 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
+import random
+import time
+import MovimientoMaquina
 
 class YoshiBoard:
     def __init__(self, root):
@@ -11,11 +14,45 @@ class YoshiBoard:
         self.cell_size = 60
         self.canvas_size = self.board_size * self.cell_size
         
-        # Posiciones iniciales de los Yoshis
+         # Posiciones iniciales de los Yoshis
         self.green_yoshi_pos = (3, 3)
         self.red_yoshi_pos = (4, 4)
+        # Posicion aleatoria yoshis
+        def posicion_aleatoria():
+            x = random.randint(1,6)
+            y = random.randint(1,6)
+            return((x,y))
+        self.green_yoshi_pos = posicion_aleatoria()
+        self.red_yoshi_pos = posicion_aleatoria()
+        while self.green_yoshi_pos == self.red_yoshi_pos:
+            self.red_yoshi_pos = posicion_aleatoria()
         
-        # Crear frame superior para el combobox
+        # Turno inicial (verde comienza)
+        self.current_turn = "green"
+        
+        # Puntuación
+        self.green_score = 0
+        self.red_score = 0
+        
+        # Casillas especiales pintadas (guardamos el color con que fueron pintadas)
+        self.painted_cells = {}  # Formato: {(row, col): "color"}
+        
+        # Definir las zonas especiales
+        self.special_zones = {
+            # Esquina superior izquierda
+            "top_left": [(0,0), (0,1), (0,2), (1,0), (2,0)],
+            # Esquina superior derecha
+            "top_right": [(0,7), (0,6), (0,5), (1,7), (2,7)],
+            # Esquina inferior izquierda
+            "bottom_left": [(7,0), (7,1), (7,2), (6,0), (5,0)],
+            # Esquina inferior derecha
+            "bottom_right": [(7,7), (7,6), (7,5), (6,7), (5,7)]
+        }
+        
+        # Controlar si el juego ha terminado
+        self.game_over = False
+        
+        # Crear frame superior para controles
         self.top_frame = tk.Frame(root)
         self.top_frame.pack(pady=10)
         
@@ -29,7 +66,27 @@ class YoshiBoard:
             state="readonly"
         )
         self.difficulty.current(1)  # Selecciona "Normal" por defecto
-        self.difficulty.pack(side=tk.LEFT)
+        self.difficulty.pack(side=tk.LEFT, padx=10)
+        
+        # Botón de reinicio
+        self.reset_button = tk.Button(self.top_frame, text="Reiniciar", command=self.reset_game)
+        self.reset_button.pack(side=tk.LEFT, padx=10)
+        
+        # Frame para información del juego
+        self.info_frame = tk.Frame(root)
+        self.info_frame.pack(pady=5)
+        
+        # Indicador de turno
+        self.turn_label = tk.Label(self.info_frame, text="Turno: Yoshi Verde", fg="#2ecc71", font=("Arial", 10, "bold"))
+        self.turn_label.pack(side=tk.LEFT, padx=20)
+        
+        # Marcador de puntuación
+        self.score_label = tk.Label(
+            self.info_frame, 
+            text="Verde: 0 - Rojo: 0", 
+            font=("Arial", 10, "bold")
+        )
+        self.score_label.pack(side=tk.LEFT, padx=20)
         
         # Crear canvas
         self.canvas = tk.Canvas(root, width=self.canvas_size, height=self.canvas_size, bg="white")
@@ -39,7 +96,22 @@ class YoshiBoard:
         self.draw_board()
         self.mark_special_zones()
         self.draw_yoshis()
-    
+        
+        # Vincular evento de clic
+        self.canvas.bind("<Button-1>", self.on_cell_click)
+        
+        # Almacenar posibles movimientos
+        self.possible_moves = []
+
+        #Movimiento de la maquina*******************************************************************
+        time.sleep(2)
+        if self.current_turn == "green":
+            print(self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1]))
+            moves = self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1])
+            movimiento = MovimientoMaquina.MovimientoMaquina(moves,self.special_zones)
+            self.move_yoshi(movimiento[0], movimiento[1])
+            self.clear_possible_moves()
+        #*******************************************************************************************  
     def draw_board(self):
         """Dibuja un tablero completamente blanco con líneas de grid"""
         self.canvas.create_rectangle(
@@ -62,44 +134,41 @@ class YoshiBoard:
                 self.canvas_size, i * self.cell_size,
                 fill="#e0e0e0"
             )
+        
+        # Dibujar casillas pintadas
+        for (row, col), color in self.painted_cells.items():
+            x1 = col * self.cell_size
+            y1 = row * self.cell_size
+            x2 = x1 + self.cell_size
+            y2 = y1 + self.cell_size
+            
+            fill_color = "#a5d6a7" if color == "green" else "#ef9a9a"  # Tonos más claros
+            self.canvas.create_rectangle(
+                x1, y1, x2, y2, 
+                fill=fill_color, 
+                outline="black"
+            )
     
     def mark_special_zones(self):
         """Marca las 4 zonas especiales en forma de L en las esquinas"""
-        # Coordenadas de las esquinas
-        corners = [
-            (0, 0),                     # Esquina superior izquierda
-            (0, self.board_size - 1),    # Esquina superior derecha
-            (self.board_size - 1, 0),    # Esquina inferior izquierda
-            (self.board_size - 1, self.board_size - 1)  # Esquina inferior derecha
-        ]
-        
-        for corner_row, corner_col in corners:
-            # Determinar la orientación de la L basada en la esquina
-            if corner_row == 0 and corner_col == 0:  # Superior izquierda
-                cells = [(0,0), (0,1), (0,2), (1,0), (2,0)]
-            elif corner_row == 0 and corner_col == self.board_size - 1:  # Superior derecha
-                cells = [(0,7), (0,6), (0,5), (1,7), (2,7)]
-            elif corner_row == self.board_size - 1 and corner_col == 0:  # Inferior izquierda
-                cells = [(7,0), (7,1), (7,2), (6,0), (5,0)]
-            else:  # Inferior derecha
-                cells = [(7,7), (7,6), (7,5), (6,7), (5,7)]
-            
-            for row, col in cells:
+        for zone in self.special_zones.values():
+            for row, col in zone:
                 x1 = col * self.cell_size
                 y1 = row * self.cell_size
                 x2 = x1 + self.cell_size
                 y2 = y1 + self.cell_size
                 
-                # Dibujar zona especial con borde negro
-                self.canvas.create_rectangle(
-                    x1, y1, x2, y2, 
-                    fill="#f5f5f5",  # Gris muy claro
-                    outline="black",  # Borde negro
-                    width=3  # Borde grueso
-                )
+                # Solo dibujar el borde si la casilla no está pintada
+                if (row, col) not in self.painted_cells:
+                    self.canvas.create_rectangle(
+                        x1, y1, x2, y2, 
+                        fill="#f5f5f5",  # Gris muy claro
+                        outline="black",  # Borde negro
+                        width=3  # Borde grueso
+                    )
     
     def draw_yoshis(self):
-        """Dibuja los Yoshis en sus posiciones iniciales"""
+        """Dibuja los Yoshis en sus posiciones actuales"""
         # Dibujar Yoshi verde
         self.draw_knight(*self.green_yoshi_pos, "#2ecc71")  # Verde brillante
         
@@ -126,6 +195,221 @@ class YoshiBoard:
             font=("Arial", 14, "bold"),
             fill="white"
         )
+    
+    def get_knight_moves(self, row, col):
+        """Calcula todos los posibles movimientos de caballo desde una posición"""
+        moves = []
+        # Todos los posibles movimientos en L del caballo
+        knight_moves = [
+            (2, 1), (2, -1),
+            (-2, 1), (-2, -1),
+            (1, 2), (1, -2),
+            (-1, 2), (-1, -2)
+        ]
+        
+        for dr, dc in knight_moves:
+            new_row, new_col = row + dr, col + dc
+            # Verificar que el movimiento está dentro del tablero
+            if 0 <= new_row < self.board_size and 0 <= new_col < self.board_size:
+                # Verificar que no hay un Yoshi en esa posición
+                if (new_row, new_col) != self.green_yoshi_pos and (new_row, new_col) != self.red_yoshi_pos:
+                    # Verificar que la casilla no está pintada
+                    if (new_row, new_col) not in self.painted_cells:
+                        moves.append((new_row, new_col))
+        
+        return moves
+    
+    def show_possible_moves(self, moves):
+        """Muestra los posibles movimientos como círculos verdes"""
+        self.clear_possible_moves()
+        
+        for row, col in moves:
+            x = col * self.cell_size + self.cell_size // 2
+            y = row * self.cell_size + self.cell_size // 2
+            radius = self.cell_size // 6
+            
+            circle = self.canvas.create_oval(
+                x - radius, y - radius,
+                x + radius, y + radius,
+                fill="#27ae60", outline="#27ae60", width=2
+            )
+            self.possible_moves.append((row, col, circle))
+    
+    def clear_possible_moves(self):
+        """Elimina los marcadores de posibles movimientos"""
+        for _, _, circle in self.possible_moves:
+            self.canvas.delete(circle)
+        self.possible_moves = []
+    
+    def on_cell_click(self, event):
+        """Maneja el clic en una celda del tablero"""
+        if self.game_over:
+            return
+            
+        col = event.x // self.cell_size
+        row = event.y // self.cell_size
+        
+        # Determinar qué Yoshi está activo según el turno
+        active_yoshi_pos = self.green_yoshi_pos if self.current_turn == "green" else self.red_yoshi_pos
+        other_yoshi_pos = self.red_yoshi_pos if self.current_turn == "green" else self.green_yoshi_pos
+        
+
+        # Si se hace clic en el Yoshi activo, mostrar movimientos posibles
+        if (row, col) == active_yoshi_pos:
+            moves = self.get_knight_moves(row, col)
+            self.show_possible_moves(moves)
+        # Si se hace clic en un movimiento posible, mover el Yoshi
+        elif any((row, col) == (r, c) for r, c, _ in self.possible_moves):
+            self.move_yoshi(row, col)
+        # Si se hace clic en cualquier otro lugar, limpiar movimientos posibles
+        else:
+            self.clear_possible_moves()
+        
+        if self.current_turn == "green":
+            print(self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1]))
+            movimientos = self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1])
+            movimiento = MovimientoMaquina.MovimientoMaquina(movimientos,self.special_zones)
+            time.sleep(2)
+            self.move_yoshi(movimiento[0], movimiento[1])
+            self.clear_possible_moves()
+    
+    def move_yoshi(self, row, col):
+        """Mueve el Yoshi activo a la posición especificada"""
+        # Limpiar movimientos posibles
+        self.clear_possible_moves()
+        
+        # Guardar posición anterior
+        old_row, old_col = self.green_yoshi_pos if self.current_turn == "green" else self.red_yoshi_pos
+        
+        # Actualizar posición del Yoshi activo
+        if self.current_turn == "green":
+            self.green_yoshi_pos = (row, col)
+        else:
+            self.red_yoshi_pos = (row, col)
+        
+        # Verificar si el movimiento fue a una zona especial
+        self.check_special_zone(row, col)
+        
+        # Cambiar turno
+        self.current_turn = "red" if self.current_turn == "green" else "green"
+        self.update_turn_label()
+        
+        # Redibujar el tablero
+        self.canvas.delete("all")
+        self.draw_board()
+        self.mark_special_zones()
+        self.draw_yoshis()
+        
+        # Verificar si el juego ha terminado
+        self.check_game_over()
+    
+    def check_special_zone(self, row, col):
+        """Verifica si el movimiento fue a una zona especial y pinta la casilla si es necesario"""
+        # Verificar todas las zonas especiales
+        for zone_name, zone_cells in self.special_zones.items():
+            if (row, col) in zone_cells and (row, col) not in self.painted_cells:
+                # Pintar la casilla con el color del Yoshi actual
+                self.painted_cells[(row, col)] = self.current_turn
+                
+                # Recalcular puntuación
+                self.calculate_scores()
+                self.update_score_label()
+                break
+    
+    def calculate_scores(self):
+        """Calcula la puntuación de cada jugador basada en las zonas controladas"""
+        self.green_score = 0
+        self.red_score = 0
+        
+        # Contar zonas controladas por cada jugador
+        for zone_name, zone_cells in self.special_zones.items():
+            green_count = 0
+            red_count = 0
+            
+            for cell in zone_cells:
+                if cell in self.painted_cells:
+                    if self.painted_cells[cell] == "green":
+                        green_count += 1
+                    else:
+                        red_count += 1
+            
+            # Asignar la zona al jugador con mayoría
+            if green_count > red_count:
+                self.green_score += 1
+            elif red_count > green_count:
+                self.red_score += 1
+            # En caso de empate, no se asigna a nadie
+    
+    def check_game_over(self):
+        """Verifica si todas las casillas especiales han sido pintadas"""
+        total_special_cells = sum(len(zone) for zone in self.special_zones.values())
+        painted_special_cells = sum(1 for cell in self.painted_cells if any(cell in zone for zone in self.special_zones.values()))
+        
+        if painted_special_cells == total_special_cells:
+            self.game_over = True
+            self.show_game_result()
+    
+    def show_game_result(self):
+        """Muestra el resultado final del juego"""
+        winner = ""
+        if self.green_score > self.red_score:
+            winner = "¡Yoshi Verde gana!"
+        elif self.red_score > self.green_score:
+            winner = "¡Yoshi Rojo gana!"
+        else:
+            winner = "¡Empate!"
+        
+        message = f"Juego terminado!\n\nPuntuación final:\nYoshi Verde: {self.green_score}\nYoshi Rojo: {self.red_score}\n\n{winner}"
+        messagebox.showinfo("Fin del juego", message)
+    
+    def update_turn_label(self):
+        """Actualiza la etiqueta que muestra de quién es el turno"""
+        if self.current_turn == "green":
+            self.turn_label.config(text="Turno: Yoshi Verde", fg="#2ecc71")
+        else:
+            self.turn_label.config(text="Turno: Yoshi Rojo", fg="#e74c3c")
+    
+    def update_score_label(self):
+        """Actualiza la etiqueta de puntuación"""
+        self.score_label.config(text=f"Verde: {self.green_score} - Rojo: {self.red_score}")
+    
+    def reset_game(self):
+        """Reinicia el juego a su estado inicial"""
+        # Resetear posiciones
+        # Posiciones iniciales de los Yoshis
+        self.green_yoshi_pos = (3, 3)
+        self.red_yoshi_pos = (4, 4)
+        # Posicion aleatoria yoshis
+        def posicion_aleatoria():
+            x = random.randint(1,6)
+            y = random.randint(1,6)
+            return((x,y))
+        self.green_yoshi_pos = posicion_aleatoria()
+        self.red_yoshi_pos = posicion_aleatoria()
+        while self.green_yoshi_pos == self.red_yoshi_pos:
+            self.red_yoshi_pos = posicion_aleatoria()
+        
+        # Resetear turno
+        self.current_turn = "green"
+        
+        # Resetear puntuación
+        self.green_score = 0
+        self.red_score = 0
+        
+        # Resetear casillas pintadas
+        self.painted_cells = {}
+        
+        # Resetear estado del juego
+        self.game_over = False
+        
+        # Actualizar interfaz
+        self.update_turn_label()
+        self.update_score_label()
+        self.clear_possible_moves()
+        self.canvas.delete("all")
+        self.draw_board()
+        self.mark_special_zones()
+        self.draw_yoshis()
 
 def main():
     root = tk.Tk()
