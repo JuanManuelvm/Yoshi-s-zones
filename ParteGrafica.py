@@ -4,6 +4,46 @@ import random
 import time
 import MovimientoMaquina
 
+class StartScreen:
+    def __init__(self, root, callback):
+        self.root = root
+        self.callback = callback
+        
+        self.window = tk.Toplevel(root)
+        self.window.title("Seleccionar Dificultad")
+        self.window.geometry("300x150")
+        
+        # Centrar la ventana
+        window_width = 300
+        window_height = 150
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        self.window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        tk.Label(self.window, text="Seleccione la dificultad", font=("Arial", 12)).pack(pady=10)
+        
+        self.difficulty = ttk.Combobox(
+            self.window, 
+            values=["Principiante", "Amateur", "Experto"],
+            state="readonly"
+        )
+        self.difficulty.current(1)  # Selecciona "Amateur" por defecto
+        self.difficulty.pack(pady=10)
+        
+        tk.Button(
+            self.window, 
+            text="Comenzar Juego", 
+            command=self.start_game,
+            font=("Arial", 10)
+        ).pack(pady=10)
+        
+    def start_game(self):
+        difficulty = self.difficulty.get()
+        self.callback(difficulty)
+        self.window.destroy()
+
 class YoshiBoard:
     def __init__(self, root):
         self.root = root
@@ -13,8 +53,20 @@ class YoshiBoard:
         self.board_size = 8
         self.cell_size = 60
         self.canvas_size = self.board_size * self.cell_size
-        
-         # Posiciones iniciales de los Yoshis
+
+        # Mostrar pantalla de inicio
+        self.difficulty_level = None
+        self.start_screen = StartScreen(root, self.set_difficulty)
+        # Esperar a que se seleccione la dificultad antes de continuar
+        self.root.wait_window(self.start_screen.window)
+        # Configurar profundidad según dificultad
+        self.depth = {
+            "Principiante": 2,
+            "Amateur": 4,
+            "Experto": 6
+        }.get(self.difficulty_level, 4)  # Default a Amateur si hay algún problema
+
+        # Posiciones iniciales de los Yoshis
         self.green_yoshi_pos = (3, 3)
         self.red_yoshi_pos = (4, 4)
         # Posicion aleatoria yoshis
@@ -57,16 +109,8 @@ class YoshiBoard:
         self.top_frame.pack(pady=10)
         
         # Lista desplegable de dificultad
-        self.difficulty_label = tk.Label(self.top_frame, text="Dificultad:")
-        self.difficulty_label.pack(side=tk.LEFT, padx=5)
-        
-        self.difficulty = ttk.Combobox(
-            self.top_frame, 
-            values=["Principiante", "Normal", "Avanzado"],
-            state="readonly"
-        )
-        self.difficulty.current(1)  # Selecciona "Normal" por defecto
-        self.difficulty.pack(side=tk.LEFT, padx=10)
+        self.difficulty_label = tk.Label(self.top_frame, text=f"Dificultad: {self.difficulty_level}", font=("Arial", 10))
+        self.difficulty_label.pack(side=tk.LEFT, padx=10)
         
         # Botón de reinicio
         self.reset_button = tk.Button(self.top_frame, text="Reiniciar", command=self.reset_game)
@@ -104,14 +148,19 @@ class YoshiBoard:
         self.possible_moves = []
 
         #Movimiento de la maquina*******************************************************************
-        time.sleep(2)
+        time.sleep(0.5)
         if self.current_turn == "green":
-            print(self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1]))
-            moves = self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1])
-            movimiento = MovimientoMaquina.MovimientoMaquina(moves,self.special_zones)
+            print("==================================")
+            movimiento = MovimientoMaquina.MovimientoMaquina(self.special_zones,self.painted_cells, self.green_yoshi_pos, self.red_yoshi_pos,self.depth)
+            print(str(movimiento)+ "*************************************************")
             self.move_yoshi(movimiento[0], movimiento[1])
             self.clear_possible_moves()
         #*******************************************************************************************  
+
+    def set_difficulty(self, difficulty):
+        """Establece la dificultad seleccionada"""
+        self.difficulty_level = difficulty
+
     def draw_board(self):
         """Dibuja un tablero completamente blanco con líneas de grid"""
         self.canvas.create_rectangle(
@@ -253,7 +302,6 @@ class YoshiBoard:
         active_yoshi_pos = self.green_yoshi_pos if self.current_turn == "green" else self.red_yoshi_pos
         other_yoshi_pos = self.red_yoshi_pos if self.current_turn == "green" else self.green_yoshi_pos
         
-
         # Si se hace clic en el Yoshi activo, mostrar movimientos posibles
         if (row, col) == active_yoshi_pos:
             moves = self.get_knight_moves(row, col)
@@ -265,11 +313,18 @@ class YoshiBoard:
         else:
             self.clear_possible_moves()
         
-        if self.current_turn == "green":
-            print(self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1]))
-            movimientos = self.get_knight_moves(self.green_yoshi_pos[0], self.green_yoshi_pos[1])
-            movimiento = MovimientoMaquina.MovimientoMaquina(movimientos,self.special_zones)
-            time.sleep(2)
+        # Solo mover la IA si el juego no ha terminado después del movimiento del jugador
+        if not self.game_over and self.current_turn == "green":
+            print("==================================")
+            movimiento = MovimientoMaquina.MovimientoMaquina(
+                self.special_zones,
+                self.painted_cells, 
+                self.green_yoshi_pos, 
+                self.red_yoshi_pos, 
+                self.depth
+            )
+            print(str(movimiento) + "*************************************************")
+            time.sleep(0.5)
             self.move_yoshi(movimiento[0], movimiento[1])
             self.clear_possible_moves()
     
@@ -376,14 +431,11 @@ class YoshiBoard:
     def reset_game(self):
         """Reinicia el juego a su estado inicial"""
         # Resetear posiciones
-        # Posiciones iniciales de los Yoshis
-        self.green_yoshi_pos = (3, 3)
-        self.red_yoshi_pos = (4, 4)
-        # Posicion aleatoria yoshis
         def posicion_aleatoria():
             x = random.randint(1,6)
             y = random.randint(1,6)
             return((x,y))
+        
         self.green_yoshi_pos = posicion_aleatoria()
         self.red_yoshi_pos = posicion_aleatoria()
         while self.green_yoshi_pos == self.red_yoshi_pos:
@@ -410,6 +462,19 @@ class YoshiBoard:
         self.draw_board()
         self.mark_special_zones()
         self.draw_yoshis()
+        
+        # Movimiento inicial de la máquina
+        time.sleep(0.5)
+        if self.current_turn == "green":
+            movimiento = MovimientoMaquina.MovimientoMaquina(
+                self.special_zones,
+                self.painted_cells, 
+                self.green_yoshi_pos, 
+                self.red_yoshi_pos,
+                self.depth
+            )
+            self.move_yoshi(movimiento[0], movimiento[1])
+            self.clear_possible_moves()
 
 def main():
     root = tk.Tk()
