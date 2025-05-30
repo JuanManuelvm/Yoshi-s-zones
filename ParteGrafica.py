@@ -67,8 +67,8 @@ class YoshiBoard:
         }.get(self.difficulty_level, 4)  # Default a Amateur si hay algún problema
 
         # Posiciones iniciales de los Yoshis
-        self.green_yoshi_pos = (3, 3)
-        self.red_yoshi_pos = (4, 4)
+        self.green_yoshi_pos = (0, 0)
+        self.red_yoshi_pos = (0, 0)
         # Posicion aleatoria yoshis
         def posicion_aleatoria():
             x = random.randint(1,6)
@@ -76,6 +76,7 @@ class YoshiBoard:
             return((x,y))
         self.green_yoshi_pos = posicion_aleatoria()
         self.red_yoshi_pos = posicion_aleatoria()
+        #Nunca pueden quedar en al misma celda
         while self.green_yoshi_pos == self.red_yoshi_pos:
             self.red_yoshi_pos = posicion_aleatoria()
         
@@ -92,13 +93,13 @@ class YoshiBoard:
         # Definir las zonas especiales
         self.special_zones = {
             # Esquina superior izquierda
-            "top_left": [(0,0), (0,1), (0,2), (1,0), (2,0)],
+            "superior_izquierda": [(0,0), (0,1), (0,2), (1,0), (2,0)],
             # Esquina superior derecha
-            "top_right": [(0,7), (0,6), (0,5), (1,7), (2,7)],
+            "superior_derecha": [(0,7), (0,6), (0,5), (1,7), (2,7)],
             # Esquina inferior izquierda
-            "bottom_left": [(7,0), (7,1), (7,2), (6,0), (5,0)],
+            "inferior_izquierda": [(7,0), (7,1), (7,2), (6,0), (5,0)],
             # Esquina inferior derecha
-            "bottom_right": [(7,7), (7,6), (7,5), (6,7), (5,7)]
+            "inferior_derecha": [(7,7), (7,6), (7,5), (6,7), (5,7)]
         }
         
         # Controlar si el juego ha terminado
@@ -147,7 +148,7 @@ class YoshiBoard:
         # Almacenar posibles movimientos
         self.possible_moves = []
 
-        #Movimiento de la maquina*******************************************************************
+        # Primer movimiento de la maquina
         time.sleep(0.5)
         if self.current_turn == "green":
             print("==================================")
@@ -155,14 +156,13 @@ class YoshiBoard:
             print(str(movimiento)+ "*************************************************")
             self.move_yoshi(movimiento[0], movimiento[1])
             self.clear_possible_moves()
-        #*******************************************************************************************  
 
+    # Establece la dificultad seleccionada
     def set_difficulty(self, difficulty):
-        """Establece la dificultad seleccionada"""
         self.difficulty_level = difficulty
 
+    # Dibuja un tablero completamente blanco con líneas de grid
     def draw_board(self):
-        """Dibuja un tablero completamente blanco con líneas de grid"""
         self.canvas.create_rectangle(
             0, 0, 
             self.canvas_size, self.canvas_size, 
@@ -175,7 +175,7 @@ class YoshiBoard:
             self.canvas.create_line(
                 i * self.cell_size, 0,
                 i * self.cell_size, self.canvas_size,
-                fill="#e0e0e0"  # Gris claro para las líneas de grid
+                fill="#e0e0e0"
             )
             # Líneas horizontales
             self.canvas.create_line(
@@ -191,15 +191,15 @@ class YoshiBoard:
             x2 = x1 + self.cell_size
             y2 = y1 + self.cell_size
             
-            fill_color = "#a5d6a7" if color == "green" else "#ef9a9a"  # Tonos más claros
+            fill_color = "#a5d6a7" if color == "green" else "#ef9a9a"
             self.canvas.create_rectangle(
                 x1, y1, x2, y2, 
                 fill=fill_color, 
                 outline="black"
             )
     
+    # Marca las 4 zonas especiales en forma de L en las esquinas
     def mark_special_zones(self):
-        """Marca las 4 zonas especiales en forma de L en las esquinas"""
         for zone in self.special_zones.values():
             for row, col in zone:
                 x1 = col * self.cell_size
@@ -211,21 +211,21 @@ class YoshiBoard:
                 if (row, col) not in self.painted_cells:
                     self.canvas.create_rectangle(
                         x1, y1, x2, y2, 
-                        fill="#f5f5f5",  # Gris muy claro
-                        outline="black",  # Borde negro
-                        width=3  # Borde grueso
+                        fill="#f5f5f5", 
+                        outline="black",
+                        width=3
                     )
     
+    # Dibuja los Yoshis en sus posiciones actuales
     def draw_yoshis(self):
-        """Dibuja los Yoshis en sus posiciones actuales"""
         # Dibujar Yoshi verde
         self.draw_knight(*self.green_yoshi_pos, "#2ecc71")  # Verde brillante
         
         # Dibujar Yoshi rojo
         self.draw_knight(*self.red_yoshi_pos, "#e74c3c")  # Rojo brillante
     
+    # Dibuja un caballo en la posición dada
     def draw_knight(self, row, col, color):
-        """Dibuja un caballo en la posición dada"""
         x = col * self.cell_size + self.cell_size // 2
         y = row * self.cell_size + self.cell_size // 2
         radius = self.cell_size // 3
@@ -245,8 +245,8 @@ class YoshiBoard:
             fill="white"
         )
     
+    # Calcula todos los posibles movimientos de caballo desde una posición
     def get_knight_moves(self, row, col):
-        """Calcula todos los posibles movimientos de caballo desde una posición"""
         moves = []
         # Todos los posibles movimientos en L del caballo
         knight_moves = [
@@ -268,8 +268,8 @@ class YoshiBoard:
         
         return moves
     
+    # Muestra los posibles movimientos como círculos verdes
     def show_possible_moves(self, moves):
-        """Muestra los posibles movimientos como círculos verdes"""
         self.clear_possible_moves()
         
         for row, col in moves:
@@ -284,14 +284,14 @@ class YoshiBoard:
             )
             self.possible_moves.append((row, col, circle))
     
+    # Elimina los marcadores de posibles movimientos
     def clear_possible_moves(self):
-        """Elimina los marcadores de posibles movimientos"""
         for _, _, circle in self.possible_moves:
             self.canvas.delete(circle)
         self.possible_moves = []
     
+    # Maneja el clic en una celda del tablero
     def on_cell_click(self, event):
-        """Maneja el clic en una celda del tablero"""
         if self.game_over:
             return
             
@@ -300,7 +300,6 @@ class YoshiBoard:
         
         # Determinar qué Yoshi está activo según el turno
         active_yoshi_pos = self.green_yoshi_pos if self.current_turn == "green" else self.red_yoshi_pos
-        other_yoshi_pos = self.red_yoshi_pos if self.current_turn == "green" else self.green_yoshi_pos
         
         # Si se hace clic en el Yoshi activo, mostrar movimientos posibles
         if (row, col) == active_yoshi_pos:
@@ -312,29 +311,11 @@ class YoshiBoard:
         # Si se hace clic en cualquier otro lugar, limpiar movimientos posibles
         else:
             self.clear_possible_moves()
-        
-        # Solo mover la IA si el juego no ha terminado después del movimiento del jugador
-        if not self.game_over and self.current_turn == "green":
-            print("==================================")
-            movimiento = MovimientoMaquina.MovimientoMaquina(
-                self.special_zones,
-                self.painted_cells, 
-                self.green_yoshi_pos, 
-                self.red_yoshi_pos, 
-                self.depth
-            )
-            print(str(movimiento) + "*************************************************")
-            time.sleep(0.5)
-            self.move_yoshi(movimiento[0], movimiento[1])
-            self.clear_possible_moves()
     
+    # Mueve el Yoshi activo a la posición especificada
     def move_yoshi(self, row, col):
-        """Mueve el Yoshi activo a la posición especificada"""
         # Limpiar movimientos posibles
         self.clear_possible_moves()
-        
-        # Guardar posición anterior
-        old_row, old_col = self.green_yoshi_pos if self.current_turn == "green" else self.red_yoshi_pos
         
         # Actualizar posición del Yoshi activo
         if self.current_turn == "green":
@@ -357,9 +338,26 @@ class YoshiBoard:
         
         # Verificar si el juego ha terminado
         self.check_game_over()
+
+        if not self.game_over and self.current_turn == "green":
+            self.root.after(int(0.5 * 1000), self.movimiento_maquina)
+
+    # Realiza el movimiento de la IA después del delay
+    def movimiento_maquina(self):
+        print("==================================")
+        movimiento = MovimientoMaquina.MovimientoMaquina(
+            self.special_zones,
+            self.painted_cells, 
+            self.green_yoshi_pos, 
+            self.red_yoshi_pos,
+            self.depth
+        )
+        print(str(movimiento) + "*************************************************")
+        self.move_yoshi(movimiento[0], movimiento[1])
+        self.clear_possible_moves()
     
+    # Verifica si el movimiento fue a una zona especial y pinta la casilla si es necesario
     def check_special_zone(self, row, col):
-        """Verifica si el movimiento fue a una zona especial y pinta la casilla si es necesario"""
         # Verificar todas las zonas especiales
         for zone_name, zone_cells in self.special_zones.items():
             if (row, col) in zone_cells and (row, col) not in self.painted_cells:
@@ -371,8 +369,8 @@ class YoshiBoard:
                 self.update_score_label()
                 break
     
+    # Calcula la puntuación de cada jugador basada en las zonas controladas
     def calculate_scores(self):
-        """Calcula la puntuación de cada jugador basada en las zonas controladas"""
         self.green_score = 0
         self.red_score = 0
         
@@ -393,10 +391,9 @@ class YoshiBoard:
                 self.green_score += 1
             elif red_count > green_count:
                 self.red_score += 1
-            # En caso de empate, no se asigna a nadie
     
+    # Verifica si todas las casillas especiales han sido pintadas
     def check_game_over(self):
-        """Verifica si todas las casillas especiales han sido pintadas"""
         total_special_cells = sum(len(zone) for zone in self.special_zones.values())
         painted_special_cells = sum(1 for cell in self.painted_cells if any(cell in zone for zone in self.special_zones.values()))
         
@@ -404,8 +401,8 @@ class YoshiBoard:
             self.game_over = True
             self.show_game_result()
     
+    # Muestra el resultado final del juego
     def show_game_result(self):
-        """Muestra el resultado final del juego"""
         winner = ""
         if self.green_score > self.red_score:
             winner = "¡Yoshi Verde gana!"
@@ -417,8 +414,8 @@ class YoshiBoard:
         message = f"Juego terminado!\n\nPuntuación final:\nYoshi Verde: {self.green_score}\nYoshi Rojo: {self.red_score}\n\n{winner}"
         messagebox.showinfo("Fin del juego", message)
     
+    # Actualiza la etiqueta que muestra de quién es el turno
     def update_turn_label(self):
-        """Actualiza la etiqueta que muestra de quién es el turno"""
         if self.current_turn == "green":
             self.turn_label.config(text="Turno: Yoshi Verde", fg="#2ecc71")
         else:
@@ -428,8 +425,21 @@ class YoshiBoard:
         """Actualiza la etiqueta de puntuación"""
         self.score_label.config(text=f"Verde: {self.green_score} - Rojo: {self.red_score}")
     
+    # Reinicia el juego a su estado inicial
     def reset_game(self):
-        """Reinicia el juego a su estado inicial"""
+    # Mostrar pantalla de inicio para seleccionar nueva dificultad
+        self.start_screen = StartScreen(self.root, self.set_difficulty_and_reset)
+        self.root.wait_window(self.start_screen.window)
+
+    def set_difficulty_and_reset(self, difficulty):
+        """Establece la dificultad y luego reinicia el juego"""
+        self.difficulty_level = difficulty
+        self.depth = {
+            "Principiante": 2,
+            "Amateur": 4,
+            "Experto": 6
+        }.get(self.difficulty_level, 4)  # Default a Amateur si hay algún problema
+        
         # Resetear posiciones
         def posicion_aleatoria():
             x = random.randint(1,6)
@@ -455,6 +465,7 @@ class YoshiBoard:
         self.game_over = False
         
         # Actualizar interfaz
+        self.difficulty_label.config(text=f"Dificultad: {self.difficulty_level}")
         self.update_turn_label()
         self.update_score_label()
         self.clear_possible_moves()
@@ -463,23 +474,13 @@ class YoshiBoard:
         self.mark_special_zones()
         self.draw_yoshis()
         
-        # Movimiento inicial de la máquina
-        time.sleep(0.5)
-        if self.current_turn == "green":
-            movimiento = MovimientoMaquina.MovimientoMaquina(
-                self.special_zones,
-                self.painted_cells, 
-                self.green_yoshi_pos, 
-                self.red_yoshi_pos,
-                self.depth
-            )
-            self.move_yoshi(movimiento[0], movimiento[1])
-            self.clear_possible_moves()
+        if not self.game_over and self.current_turn == "green":
+            self.root.after(int(0.5 * 1000), self.movimiento_maquina)
 
 def main():
     root = tk.Tk()
     game = YoshiBoard(root)
     root.mainloop()
-
+    
 if __name__ == "__main__":
     main()
