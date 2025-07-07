@@ -1,13 +1,15 @@
-# Genera los movimientos posibles para el yoshi
+# Funcion para generar los movimientos posibles para el yoshi
 def generar_movimientos(yoshi_pos, painted_cells, otro_yoshi_pos):
     movimientos = []
     deltas = [(-2, -1), (-2, 1), (-1, -2), (-1, 2),
               (1, -2), (1, 2), (2, -1), (2, 1)]
     
     for dx, dy in deltas:
-        x, y = yoshi_pos[0] + dx, yoshi_pos[1] + dy
+        x = yoshi_pos[0] + dx
+        y = yoshi_pos[1] + dy
+        # Verifica que el movimiento posible este dentro del tablero de juego 
         if 0 <= x < 8 and 0 <= y < 8:
-            # Verificar que no esté pintada y no sea la posición del otro Yoshi
+            # Verifica que no esté pintada y no sea la posición del otro Yoshi
             if (x, y) not in painted_cells and (x, y) != otro_yoshi_pos:
                 movimientos.append((x, y))
     return movimientos
@@ -16,13 +18,11 @@ def generar_movimientos(yoshi_pos, painted_cells, otro_yoshi_pos):
 def distancia_caballo(pos1, pos2):
     dx = abs(pos1[0] - pos2[0])
     dy = abs(pos1[1] - pos2[1])
-    return max(dx/2, dy/2)  # aproximación
+    return max(dx/2, dy/2)
 
 # Retorna las celdas de zonas especiales que no han sido pintadas
 def obtener_celdas_especiales_no_pintadas(painted_cells, especiales):
     celdas_no_pintadas = []
-    
-    # Iterar sobre todas las celdas de todas las zonas especiales
     for zona in especiales.values():
         for celda in zona:
             if celda not in painted_cells:
@@ -32,14 +32,8 @@ def obtener_celdas_especiales_no_pintadas(painted_cells, especiales):
 
 # Heuristica del programa
 def evaluar_estado(painted_cells, especiales, green_pos, red_pos):
-    """
-    Heurística mejorada que considera:
-    - Control de zonas especiales
-    - Movilidad de cada jugador
-    - Distancia a zonas no controladas
-    """
+
     puntaje = 0
-    
     # 1. Puntos por control de zonas (mayor peso)
     for zona in especiales.values():
         verde = 0
@@ -65,7 +59,7 @@ def evaluar_estado(painted_cells, especiales, green_pos, red_pos):
     for celda in obtener_celdas_especiales_no_pintadas(painted_cells, especiales):
         dist_verde = distancia_caballo(green_pos, celda)
         dist_rojo = distancia_caballo(red_pos, celda)
-        puntaje += 0.3 * (dist_rojo - dist_verde)  # favorece menor distancia verde
+        puntaje += 0.3 * (dist_rojo - dist_verde)
     
     return puntaje
 
@@ -86,26 +80,21 @@ def minimax(especiales, painted_cells, green_pos, red_pos, profundidad, es_maxim
     if es_maximizador:  # Turno del Yoshi verde (Maximiza)
         mejor_valor = -float('inf')
         mejor_movimiento = None
-        print("Verde: " + str(movimientos) )
+        print("Verde: " + str(movimientos))
+
         for mov in movimientos:
-            # Copia el diccionario de celdas pintadas
             nuevo_painted = painted_cells.copy()
-            
-            # Si el movimiento es a una zona especial, píntala
             for zona in especiales.values():
                 if mov in zona:
                     nuevo_painted[mov] = "green"
             
-            # Llama recursivamente a minimax
             valor, _ = minimax(especiales, nuevo_painted, mov, red_pos, profundidad - 1, False, alpha, beta)
 
-            # Actualiza el mejor movimiento
             if valor > mejor_valor:
                 mejor_valor = valor
                 mejor_movimiento = mov
                 alpha = max(alpha, mejor_valor)
-            
-            # Poda alfa-beta
+
             if beta <= alpha:
                 break
                 
@@ -137,10 +126,6 @@ def minimax(especiales, painted_cells, green_pos, red_pos, profundidad, es_maxim
 
 
 def MovimientoMaquina(especiales, painted_cells, green_pos, red_pos, depth):
-    """
-    Decide el mejor movimiento para el Yoshi verde usando Minimax con profundidad 2.
-    """
-  
     # --- Ejecutar Minimax ---
     print(green_pos)
     mejor_valor, mejor_movimiento = minimax(especiales,painted_cells, green_pos, red_pos, depth, es_maximizador=True)
@@ -149,6 +134,7 @@ def MovimientoMaquina(especiales, painted_cells, green_pos, red_pos, depth):
     return mejor_movimiento
     
 
+#Ejemplos
 MovimientoMaquina({'top_left': [(0, 0), (0, 1), (0, 2), (1, 0), (2, 0)], 
                    'top_right': [(0, 7), (0, 6), (0, 5), (1, 7), (2, 7)], 
                    'bottom_left': [(7, 0), (7, 1), (7, 2), (6, 0), (5, 0)], 
